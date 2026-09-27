@@ -44,13 +44,29 @@ app = FastAPI(
 )
 
 
+def parse_cors_origins(raw: str) -> list[str]:
+    """Parse CORS_ORIGINS - handles JSON arrays, comma-separated, or plain URLs."""
+    raw = raw.strip()
+
+    # Strip JSON array brackets if present
+    if raw.startswith("[") and raw.endswith("]"):
+        raw = raw[1:-1]
+
+    # Split by comma, strip quotes and whitespace from each origin
+    origins = []
+
+    for part in raw.split(","):
+        origin = part.strip().strip('"').strip("'").strip()
+
+        if origin:
+            origins.append(origin)
+
+    return origins
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        origin.strip()
-        for origin in settings.CORS_ORIGINS.split(",")
-        if origin.strip()
-    ],
+    allow_origins=parse_cors_origins(settings.CORS_ORIGINS),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
