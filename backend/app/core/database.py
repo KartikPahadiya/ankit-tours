@@ -8,15 +8,22 @@ class Base(DeclarativeBase):
     pass
 
 
-db_url = settings.DATABASE_URL if settings.DATABASE_URL else "sqlite:///./Ankit Travels.db"
+db_url = settings.DATABASE_URL
 
+# Render/Heroku provide "postgres://" but SQLAlchemy needs "postgresql://"
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+# SQLite needs a local file, PostgreSQL/MySQL use a connection server
 connect_args = {}
-if db_url.startswith("sqlite"):
+is_sqlite = db_url.startswith("sqlite")
+
+if is_sqlite:
     connect_args["check_same_thread"] = False
 
 engine = create_engine(
     db_url,
-    pool_pre_ping=True if not db_url.startswith("sqlite") else False,
+    pool_pre_ping=not is_sqlite,
     connect_args=connect_args,
 )
 
