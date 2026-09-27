@@ -12,8 +12,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
-    # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    # CORS — accept a plain comma-separated string or JSON array
+    # Example: "https://app.vercel.app,http://localhost:5173"
+    CORS_ORIGINS: str = "http://localhost:5173"
 
     # Razorpay
     RAZORPAY_KEY_ID: str
