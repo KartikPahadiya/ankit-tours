@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+/*
+  Base styles MUST live inside @layer base.
+
+  In Tailwind v4, utility classes (text-slate-900, text-white, ...)
+  live in the "utilities" CSS layer. Any CSS written OUTSIDE a layer
+  overrides all layered utilities. An unlayered `a { color: inherit }`
+  here was silently beating utility text colors on every link in the
+  app (e.g. white text on the white active sidebar button, dark text
+  on the black Sign Up button). Keeping these rules in @layer base
+  lets utilities win, as intended.
+*/
+@layer base {
+  :root {
+    font-family:
+      Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+    color: #171717;
+    background: #ffffff;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background: #ffffff;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+/* Floating WhatsApp button: heartbeat glow effect */
+@keyframes whatsapp-heartbeat {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.55), 0 6px 16px rgba(0, 0, 0, 0.3);
+    transform: scale(1);
+  }
+  12% {
+    box-shadow: 0 0 0 12px rgba(37, 211, 102, 0), 0 6px 16px rgba(0, 0, 0, 0.3);
+    transform: scale(1.07);
+  }
+  24% {
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.4), 0 6px 16px rgba(0, 0, 0, 0.3);
+    transform: scale(1);
+  }
+  36% {
+    box-shadow: 0 0 0 16px rgba(37, 211, 102, 0), 0 6px 16px rgba(0, 0, 0, 0.3);
+    transform: scale(1.07);
+  }
+  50% {
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0), 0 6px 16px rgba(0, 0, 0, 0.3);
+    transform: scale(1);
+  }
+}
+
+.whatsapp-heartbeat {
+  animation: whatsapp-heartbeat 1.8s ease-out infinite;
+}

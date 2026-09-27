@@ -1,0 +1,89 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.routes.auth import router as auth_router
+from app.api.routes.admin import router as admin_router
+from app.api.routes.stays import router as stays_router
+from app.api.routes.bookings import (
+    router as bookings_router,
+)
+from app.api.routes.payments import (
+    router as payments_router,
+)
+from app.api.routes.travel_plans import router as travel_plans_router
+from app.api.routes.packages import router as packages_router
+from app.api.routes.safaris import router as safaris_router
+from app.api.routes.custom_plans import router as custom_plans_router
+from app.core.config import settings
+from app.core.database import Base, engine
+
+# Import models so SQLAlchemy registers all tables.
+from app.models import (
+    Booking,
+    CustomPlan,
+    Payment,
+    Review,
+    Room,
+    RoomAvailability,
+    SafariConfig,
+    Stay,
+    StayImage,
+    TravelPlan,
+    TourPackage,
+    User,
+)
+
+
+# Temporary development table creation.
+# We will replace this with Alembic migrations.
+Base.metadata.create_all(bind=engine)
+
+
+app = FastAPI(
+    title=settings.APP_NAME,
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+app.include_router(auth_router)
+app.include_router(admin_router)
+app.include_router(stays_router)
+app.include_router(bookings_router)
+app.include_router(payments_router)
+app.include_router(travel_plans_router)
+app.include_router(packages_router)
+app.include_router(safaris_router)
+app.include_router(custom_plans_router)
+
+# Serve locally uploaded images (property photos uploaded from the
+# admin panel). No external image service required.
+from pathlib import Path
+
+from fastapi.staticfiles import StaticFiles
+
+Path("uploads").mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
+@app.get("/")
+def root():
+    return {
+        "message": "Ankit Travels API is running",
+        "version": "1.0.0",
+    }
+
+
+@app.get("/api/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "Ankit Travels-api",
+    }
