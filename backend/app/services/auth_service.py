@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-
+from sqlalchemy import func
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -19,7 +19,7 @@ def register_user(
 ) -> User:
 
     existing_user = db.query(User).filter(
-        User.email == email.lower()
+        func.lower(User.email) == email.lower()
     ).first()
 
     if existing_user:
@@ -60,7 +60,7 @@ def authenticate_user(
 ) -> User:
 
     user = db.query(User).filter(
-        User.email == email.lower()
+        func.lower(User.email) == email.lower()
     ).first()
 
     if not user:
