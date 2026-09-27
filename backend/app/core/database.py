@@ -11,8 +11,11 @@ class Base(DeclarativeBase):
 db_url = settings.DATABASE_URL
 
 # Render/Heroku provide "postgres://" but SQLAlchemy needs "postgresql://"
+# Also force the psycopg2 driver since that's what's in requirements.txt
 if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
+    db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+elif db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 # SQLite needs a local file, PostgreSQL/MySQL use a connection server
 connect_args = {}
