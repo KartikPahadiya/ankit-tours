@@ -1,3 +1,4 @@
+import os
 from app.core.database import Base, SessionLocal, engine
 from app.core.security import get_password_hash
 from app.models import Room, SafariConfig, Stay, StayImage, TourPackage, User
@@ -10,23 +11,28 @@ def seed_database():
     db = SessionLocal()
 
     try:
+        admin_email = os.getenv(
+            "ADMIN_EMAIL",
+            "admin@ankittravels.com",
+        )
 
-        # --------------------------------
-        # Admin user (always created)
-        # --------------------------------
+        admin_password = os.getenv(
+            "ADMIN_PASSWORD",
+            "Admin@12345",
+        )
 
         admin = (
             db.query(User)
-            .filter(User.email == "admin@Ankit Travels.com")
+            .filter(User.email == admin_email.lower())
             .first()
         )
 
         if not admin:
             admin = User(
                 name="Ankit Travels Admin",
-                email="admin@Ankit Travels.com",
+                email=admin_email.lower(),
                 phone=None,
-                password_hash=get_password_hash("Admin@12345"),
+                password_hash=get_password_hash(admin_password),
                 role="admin",
                 is_verified=True,
                 is_active=True,
@@ -34,6 +40,29 @@ def seed_database():
 
             db.add(admin)
             db.commit()
+        # # --------------------------------
+        # # Admin user (always created)
+        # # --------------------------------
+
+        # admin = (
+        #     db.query(User)
+        #     .filter(User.email == "admin@Ankit Travels.com")
+        #     .first()
+        # )
+
+        # if not admin:
+        #     admin = User(
+        #         name="Ankit Travels Admin",
+        #         email="admin@Ankit Travels.com",
+        #         phone=None,
+        #         password_hash=get_password_hash("Admin@12345"),
+        #         role="admin",
+        #         is_verified=True,
+        #         is_active=True,
+        #     )
+
+        #     db.add(admin)
+        #     db.commit()
 
         # --------------------------------
         # Tour / safari packages
