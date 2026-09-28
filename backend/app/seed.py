@@ -28,27 +28,52 @@ def sync_admin_account(db):
     Runs on every app startup, so changing the .env values and
     restarting the server is all that's needed to rotate the
     admin credentials — no manual database edits.
+
+    The admin is identified by EMAIL first (not by id or a role
+    scan), because redeploys on top of an older database can
+    leave the role="admin" row with a stale email while some
+    other row already owns the current admin email. Mutating
+    emails across rows hits the unique index — so we promote
+    the row that already has the email and demote any stale
+    admin instead of moving emails around.
     """
 
     admin_email, admin_password = (
         get_admin_credentials()
     )
 
+    password_hash = get_password_hash(
+        admin_password
+    )
+
+    # 1) The account that already owns the admin email wins.
     admin = (
         db.query(User)
-        .filter(User.role == "admin")
-        .order_by(User.id)
+        .filter(User.email == admin_email)
         .first()
     )
 
+    # 2) Otherwise adopt the existing role="admin" account.
+    if not admin:
+        admin = (
+            db.query(User)
+            .filter(User.role == "admin")
+            .order_by(User.id)
+            .first()
+        )
+
+        if admin and admin.email != admin_email:
+            # Step 1 proved no other row owns this email, so
+            # adopting it here can never hit the unique index.
+            admin.email = admin_email
+
+    # 3) Otherwise create the admin from scratch.
     if not admin:
         admin = User(
             name="Ankit Travels Admin",
             email=admin_email,
             phone=None,
-            password_hash=get_password_hash(
-                admin_password
-            ),
+            password_hash=password_hash,
             role="admin",
             is_verified=True,
             is_active=True,
@@ -59,22 +84,25 @@ def sync_admin_account(db):
 
         return
 
-    changed = False
+    admin.role = "admin"
+    admin.password_hash = password_hash
+    admin.is_active = True
+    admin.is_verified = True
 
-    if admin.email != admin_email:
-        admin.email = admin_email
-        changed = True
-
-    # The hash cannot be compared against plaintext, so the
-    # password is re-hashed on every sync. Cost is one bcrypt
-    # hash at startup — negligible.
-    admin.password_hash = get_password_hash(
-        admin_password
+    # If a DIFFERENT account also claims the admin role (leftover
+    # from an older deploy with a different admin email), demote
+    # it so exactly one admin account remains.
+    stale_admins = (
+        db.query(User)
+        .filter(
+            User.role == "admin",
+            User.id != admin.id,
+        )
+        .all()
     )
 
-    if not admin.is_active:
-        admin.is_active = True
-        changed = True
+    for stale in stale_admins:
+        stale.role = "user"
 
     db.commit()
 
