@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     # Example: "https://app.vercel.app,http://localhost:5173"
     CORS_ORIGINS: str = "http://localhost:5173"
 
+    # Optional regex for origins that change per deploy (Vercel
+    # preview URLs etc.). Example:
+    # "https://ankit-tours-[a-z0-9-]+\\.vercel\\.app"
+    CORS_ORIGIN_REGEX: str = ""
+
     # Razorpay
     RAZORPAY_KEY_ID: str
     RAZORPAY_KEY_SECRET: str

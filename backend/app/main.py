@@ -89,6 +89,9 @@ def parse_cors_origins(raw: str) -> list[str]:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=parse_cors_origins(settings.CORS_ORIGINS),
+    allow_origin_regex=(
+        settings.CORS_ORIGIN_REGEX or None
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
