@@ -28,8 +28,8 @@ export default function AdminUsers() {
   return (
     <div>
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl font-bold sm:text-3xl">
           Users
         </h1>
 
@@ -38,7 +38,42 @@ export default function AdminUsers() {
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border overflow-hidden">
+      {/* Mobile: card list */}
+      <div className="space-y-3 md:hidden">
+        {users.map((user) => (
+          <div
+            key={user.id}
+            className="rounded-xl border bg-white px-4 py-3"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-medium">{user.name}</p>
+
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-[10px] ${
+                  user.is_active
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-700"
+                }`}
+              >
+                {user.is_active ? "Active" : "Inactive"}
+              </span>
+            </div>
+
+            <p className="mt-1 text-sm text-gray-600">
+              {user.email}
+            </p>
+
+            <p className="mt-0.5 text-sm text-gray-500">
+              {user.phone || "—"}
+              <span className="mx-1.5 text-gray-300">·</span>
+              {user.role}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden md:block bg-white rounded-xl border overflow-hidden">
 
         <div className="overflow-x-auto">
 

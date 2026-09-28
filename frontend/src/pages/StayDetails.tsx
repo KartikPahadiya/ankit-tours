@@ -1,16 +1,15 @@
 import {
   ArrowLeft,
-  Check,
   MapPin,
-  MessageCircle,
-  Star,
   Users,
+  BedDouble,
   Loader2,
 } from "lucide-react";
 
 import {
   FormEvent,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -28,16 +27,24 @@ import {
   type StayDetails as StayDetailsType,
 } from "../services/stayService";
 
+import { useAuth } from "../context/AuthContext";
 import {
-  checkAvailability,
-  type AvailabilityResponse,
-} from "../services/bookingService";
+  createRequest,
+} from "../services/requestService";
+import {
+  savePendingRequest,
+  consumePendingRequest,
+} from "../utils/pendingRequest";
+
+
+const WHATSAPP_NUMBER = "918741961756";
 
 
 function StayDetails() {
 
   const navigate = useNavigate();
   const { slug } = useParams();
+  const { user } = useAuth();
 
   const [
     stay,
@@ -68,14 +75,16 @@ function StayDetails() {
   const [guests, setGuests] =
     useState(2);
 
-  const [availability, setAvailability] =
-    useState<AvailabilityResponse | null>(null);
+  const [requestSent, setRequestSent] =
+    useState(false);
 
-  const [checkingAvailability, setCheckingAvailability] =
+  const [sending, setSending] =
     useState(false);
 
   const [bookingError, setBookingError] =
     useState("");
+
+  const galleryRef = useRef<HTMLDivElement>(null);
 
 
   useEffect(() => {
@@ -114,16 +123,70 @@ function StayDetails() {
 
     fetchStay();
 
+    // Coming back from the login redirect? Restore the
+    // room and dates they had picked.
+    const pending = consumePendingRequest();
+
+    if (
+      pending &&
+      pending.type === "stay"
+    ) {
+      if (
+        pending.roomId !== null
+      ) {
+        setSelectedRoom(
+          pending.roomId,
+        );
+      }
+
+      setCheckIn(pending.checkIn);
+      setCheckOut(pending.checkOut);
+
+      if (pending.rooms >= 1) {
+        setGuests(pending.rooms);
+      }
+    }
   }, [slug]);
 
+  useEffect(() => {
+    if (!stay || stay.images.length < 2 || !galleryRef.current) {
+      return;
+    }
 
-  const handleCheckAvailability = async (
+    const frame = requestAnimationFrame(() => {
+      const gallery = galleryRef.current;
+      if (gallery) {
+        gallery.scrollLeft = gallery.scrollWidth / 3;
+      }
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [stay]);
+
+
+  const handleAskAvailability = async (
     event: FormEvent,
   ) => {
 
     event.preventDefault();
 
     setBookingError("");
+
+    if (!user) {
+      // Keep the chosen room and dates for after login.
+      savePendingRequest({
+        type: "stay",
+        roomId: selectedRoom,
+        checkIn,
+        checkOut,
+        rooms: guests,
+      });
+
+      navigate("/login", {
+        state: { from: `/stays/${slug}` },
+      });
+      return;
+    }
 
     if (!selectedRoom) {
       setBookingError(
@@ -141,28 +204,61 @@ function StayDetails() {
 
     try {
 
-      setCheckingAvailability(true);
+      setSending(true);
 
-      const result =
-        await checkAvailability({
-          room_id: selectedRoom,
-          check_in: checkIn,
-          check_out: checkOut,
-          guests,
-        });
+      await createRequest({
+        type: "stay",
+        item_id: selectedRoom,
+        check_in: checkIn,
+        check_out: checkOut,
+        rooms: guests,
+      });
 
-      setAvailability(result);
+      setRequestSent(true);
+
+      const room = stay?.rooms.find(
+        (r) => r.id === selectedRoom,
+      );
+
+      const message =
+        `Hi Ankit! I'd like to stay at ` +
+        `${stay?.name} (${room?.name}) from ` +
+        `${checkIn} to ${checkOut} — ${guests} room(s). ` +
+        `I've sent a request on the website. ` +
+        `Please confirm availability.`;
+
+      window.open(
+        `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+          message,
+        )}`,
+        "_blank",
+      );
 
     } catch (error: any) {
 
+      if (error?.response?.status === 401) {
+        savePendingRequest({
+          type: "stay",
+          roomId: selectedRoom,
+          checkIn,
+          checkOut,
+          rooms: guests,
+        });
+
+        navigate("/login", {
+          state: { from: `/stays/${slug}` },
+        });
+        return;
+      }
+
       setBookingError(
         error?.response?.data?.detail ||
-        "Unable to check availability.",
+        "Unable to send your request. Please try again.",
       );
 
     } finally {
 
-      setCheckingAvailability(false);
+      setSending(false);
 
     }
   };
@@ -225,16 +321,10 @@ function StayDetails() {
   }
 
 
-  const primaryImage =
-    stay.images.find(
-      (image) => image.is_primary,
-    )?.image_url ||
-    stay.images[0]?.image_url;
-
-
-  const whatsappMessage = encodeURIComponent(
-    `Hi, I'm interested in ${stay.name} in ${stay.city}. I'd like to know more about availability and pricing.`,
-  );
+  const galleryImages =
+    stay.images.length > 1
+      ? [...stay.images, ...stay.images, ...stay.images]
+      : stay.images;
 
 
   return (
@@ -256,11 +346,26 @@ function StayDetails() {
         </Link>
 
 
-        {/* Gallery — horizontal scroll (1 full image + a peek of the next) */}
+        {/* Repeated images make the gallery continuously scrollable in either direction. */}
         {stay.images.length > 0 && (
-          <div className="overflow-x-auto rounded-3xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-            <div className="flex w-max gap-3 p-1">
-              {stay.images.map((image) => {
+          <div
+            ref={galleryRef}
+            onScroll={(event) => {
+              if (stay.images.length < 2) return;
+
+              const gallery = event.currentTarget;
+              const segmentWidth = gallery.scrollWidth / 3;
+
+              if (gallery.scrollLeft <= 1) {
+                gallery.scrollLeft += segmentWidth;
+              } else if (gallery.scrollLeft >= segmentWidth * 2 - 1) {
+                gallery.scrollLeft -= segmentWidth;
+              }
+            }}
+            className="overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          >
+            <div className="flex w-max">
+              {galleryImages.map((image, index) => {
                 // Find the room name for room-specific photos
                 const roomForImage = image.room_id
                   ? stay.rooms.find((r) => r.id === image.room_id)
@@ -268,24 +373,18 @@ function StayDetails() {
 
                 return (
                   <div
-                    key={image.id}
-                    className="relative h-[420px] w-[80%] shrink-0 overflow-hidden rounded-3xl sm:w-[45%] lg:w-[32%]"
+                    key={`${image.id}-${index}`}
+                    className="relative h-[260px] shrink-0 overflow-hidden sm:h-[420px]"
                   >
                     <img
                       src={image.image_url}
                       alt={roomForImage ? roomForImage.name : stay.name}
-                      className="h-full w-full object-cover"
+                      className="h-full w-auto max-w-none object-contain"
                     />
 
                     {roomForImage && (
-                      <span className="absolute bottom-4 left-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-900 shadow-sm">
+                      <span className="absolute bottom-4 right-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-900 shadow-sm">
                         {roomForImage.name}
-                      </span>
-                    )}
-
-                    {image.is_primary && !roomForImage && (
-                      <span className="absolute bottom-4 left-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-gray-900 shadow-sm">
-                        {stay.name}
                       </span>
                     )}
                   </div>
@@ -310,24 +409,6 @@ function StayDetails() {
 
               <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-xs font-semibold">
                 {stay.property_type}
-              </span>
-
-              <span className="flex items-center gap-1 text-sm font-medium">
-
-
-                <Star
-                  size={15}
-                  className="fill-black"
-                />
-
-
-                {stay.rating}
-
-
-              </span>
-
-              <span className="text-sm text-neutral-500">
-                {stay.review_count} reviews
               </span>
 
             </div>
@@ -443,7 +524,7 @@ function StayDetails() {
                         <button
                           onClick={() => {
                             setSelectedRoom(room.id);
-                            setAvailability(null);
+                            setRequestSent(false);
                           }}
                           className={`mt-4 rounded-xl px-5 py-2.5 text-sm font-semibold transition ${
                             selectedRoom === room.id
@@ -484,7 +565,7 @@ function StayDetails() {
 
 
               <form
-                onSubmit={handleCheckAvailability}
+                onSubmit={handleAskAvailability}
                 className="mt-6"
               >
 
@@ -505,7 +586,7 @@ function StayDetails() {
                         Number(event.target.value),
                       );
 
-                      setAvailability(null);
+                      setRequestSent(false);
                     }}
                     className="mt-2 w-full rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none focus:border-black"
                   >
@@ -557,7 +638,7 @@ function StayDetails() {
                       }
                       onChange={(event) => {
                         setCheckIn(event.target.value);
-                        setAvailability(null);
+                        setRequestSent(false);
                       }}
                       className="mt-2 w-full rounded-xl border border-neutral-200 px-3 py-3 text-sm outline-none focus:border-black"
                       required
@@ -585,7 +666,7 @@ function StayDetails() {
                       }
                       onChange={(event) => {
                         setCheckOut(event.target.value);
-                        setAvailability(null);
+                        setRequestSent(false);
                       }}
                       className="mt-2 w-full rounded-xl border border-neutral-200 px-3 py-3 text-sm outline-none focus:border-black"
                       required
@@ -598,19 +679,19 @@ function StayDetails() {
                 </div>
 
 
-                {/* Guests */}
+                {/* Rooms */}
 
                 <div className="mt-5">
 
 
                   <label className="text-xs font-semibold uppercase text-neutral-400">
-                    Guests
+                    Rooms
                   </label>
 
                   <div className="relative">
 
 
-                    <Users
+                    <BedDouble
                       size={17}
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400"
                     />
@@ -631,7 +712,7 @@ function StayDetails() {
                           Number(event.target.value),
                         );
 
-                        setAvailability(null);
+                        setRequestSent(false);
                       }}
                       className="mt-2 w-full rounded-xl border border-neutral-200 py-3 pl-10 pr-4 text-sm outline-none focus:border-black"
                     />
@@ -659,158 +740,37 @@ function StayDetails() {
                 )}
 
 
-                {/* Availability result */}
+                {/* Request sent confirmation */}
 
 
-                {availability && (
+                {requestSent && (
 
 
-                  <div
-                    className={`mt-4 rounded-xl border p-4 ${
-                      availability.available
-                        ? "border-green-200 bg-green-50"
-                        : "border-red-200 bg-red-50"
-                    }`}
-                  >
+                  <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4">
 
 
-                    <p className="text-sm font-semibold">
+                    <p className="text-sm font-semibold text-green-800">
+                      Request sent to Ankit!
+                    </p>
 
 
-                      {availability.available
-                        ? "Room available"
-                        : "Room unavailable"}
+                    <p className="mt-2 text-xs text-green-700">
+                      Ankit will confirm availability with you on
+                      WhatsApp. Once he accepts, you can pay from
+                      My Requests on the website.
+                    </p>
 
 
-                      </p>
-
-
-                    {availability.available && (
-
-
-                      <div className="mt-3 space-y-3 text-sm">
-
-
-                        <div className="flex justify-between">
-
-
-                          <span>
-                            ₹
-                          {availability.price_per_night.toLocaleString(
-                            "en-IN",
-                          )}{" "}
-                          × {availability.nights} nights
-                          </span>
-
-
-                          <span className="font-semibold">
-                            ₹
-                          {availability.total_amount.toLocaleString(
-                            "en-IN",
-                          )}</span>
-
-
-                        </div>
-
-
-                        <div className="text-xs text-neutral-500">
-                          {availability.available_rooms} room(s)
-                          remaining
-                        </div>
-
-
-                        <div className="mt-3 space-y-3 text-sm">
-
-
-                          {/* Online Booking Path */}
-
-
-                          <div>
-
-
-                            <h3 className="text-sm font-medium text-gray-700">
-                              Book Online
-                            </h3>
-
-                            <p className="text-xs text-gray-500">
-                              Secure online payment with Razorpay
-                            </p>
-
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!selectedRoom || !availability) {
-                                  return;
-                                }
-
-                                navigate(
-                                  `/checkout?room_id=${selectedRoom}&check_in=${checkIn}&check_out=${checkOut}&guests=${guests}`
-
-
-                                );
-                              }}
-                              className="mt-2 rounded-xl bg-black py-2.5 text-sm font-semibold text-white w-full transition hover:bg-neutral-800"
-
-
-                            >
-                              Proceed to payment (₹{availability.total_amount.toLocaleString(
-                                "en-IN",
-                              )})
-                            </button>
-                          </div>
-
-
-                          {/* WhatsApp Enquiry Path - PRIMARY */}
-
-
-                          <div>
-
-
-                            <h3 className="text-sm font-medium text-gray-700">
-                              Enquire on WhatsApp
-                            </h3>
-
-
-                            <p className="text-xs text-gray-500">
-                              Get expert advice on room suitability, safari packages,
-                              and ask about availability confirmation
-                            </p>
-
-
-                            <a
-                              href={`https://wa.me/918741961756?text=${encodeURIComponent(
-                                `Hi, I'm interested in ${stay.name} in ${stay.city}. I'd like to check availability for ${checkIn} to ${checkOut} for ${guests} guests. Also interested in safari packages and tour options.`
-
-
-                              )}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-3 inline-flex p-2 transition hover:scale-110"
-                              aria-label="Chat on WhatsApp"
-
-
-                            >
-                              <img
-                                src="/whatsapp-color-svgrepo-com.svg"
-                                alt="Chat on WhatsApp"
-                                className="h-14 w-14 drop-shadow-lg"
-                              />
-                            </a>
-
-
-                          </div>
-
-
-
-
-                      </div>
-
-
-                      </div>
-
-
-                    )}
+                    <a
+                      href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+                        `Hi Ankit, I just sent a stay request on the website for ${stay.name} (${checkIn} to ${checkOut}). Looking forward to your confirmation!`,
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                    >
+                      Open WhatsApp chat
+                    </a>
 
 
                   </div>
@@ -819,31 +779,21 @@ function StayDetails() {
                 )}
 
 
-                    {(!availability && !checkingAvailability) || (!availability && checkingAvailability) ? (
-                      <div>
-                        <button
-                          type="submit"
-                          disabled={checkingAvailability}
-                          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-black py-3.5 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
+                    <div>
+                      <button
+                        type="submit"
+                        disabled={sending}
+                        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-black py-3.5 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-60"
 
 
-                        >
-                          {checkingAvailability
-                            ? "Checking..."
-                            : "Check availability"}
+                      >
+                        {sending
+                          ? "Sending..."
+                          : "Ask availability on WhatsApp"}
 
 
-                        </button>
-                      </div>
-
-
-                    ) : (
-
-
-                      ""
-
-
-                    )}
+                      </button>
+                    </div>
 
 
               </form>

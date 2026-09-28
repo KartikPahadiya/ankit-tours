@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
@@ -10,6 +11,7 @@ import {
 } from "../services/safariService";
 
 function SafariPage() {
+  const navigate = useNavigate();
   const [safaris, setSafaris] = useState<SafariConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,6 +28,15 @@ function SafariPage() {
       <Navbar />
 
       <main className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
+
+        <button
+          onClick={() => navigate(-1)}
+          className="mb-6 inline-flex items-center gap-2 text-sm text-neutral-500 transition hover:text-black"
+        >
+          <ArrowLeft size={16} />
+          Go back
+        </button>
+
         <div className="mb-8 text-center">
           <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-orange-600">
             Safaris
@@ -34,11 +45,6 @@ function SafariPage() {
           <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">
             Safari Options & Prices
           </h1>
-
-          <p className="mt-2 text-lg text-gray-600">
-            Gypsy and Canter safaris, morning and afternoon shifts.
-            Prices are updated by Ankit for the current season.
-          </p>
         </div>
 
         {error && (

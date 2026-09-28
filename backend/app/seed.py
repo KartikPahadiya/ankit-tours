@@ -4,6 +4,81 @@ from app.core.security import get_password_hash
 from app.models import Room, SafariConfig, Stay, StayImage, TourPackage, User
 
 
+def get_admin_credentials():
+    """Admin credentials come from the environment (.env) so a
+    deployment can change them with a single edit + restart."""
+
+    admin_email = os.getenv(
+        "ADMIN_EMAIL",
+        "admin@ankittravels.com",
+    )
+
+    admin_password = os.getenv(
+        "ADMIN_PASSWORD",
+        "Admin@12345",
+    )
+
+    return admin_email.lower(), admin_password
+
+
+def sync_admin_account(db):
+    """Create the admin account if missing, otherwise bring the
+    existing admin in line with ADMIN_EMAIL / ADMIN_PASSWORD.
+
+    Runs on every app startup, so changing the .env values and
+    restarting the server is all that's needed to rotate the
+    admin credentials — no manual database edits.
+    """
+
+    admin_email, admin_password = (
+        get_admin_credentials()
+    )
+
+    admin = (
+        db.query(User)
+        .filter(User.role == "admin")
+        .order_by(User.id)
+        .first()
+    )
+
+    if not admin:
+        admin = User(
+            name="Ankit Travels Admin",
+            email=admin_email,
+            phone=None,
+            password_hash=get_password_hash(
+                admin_password
+            ),
+            role="admin",
+            is_verified=True,
+            is_active=True,
+        )
+
+        db.add(admin)
+        db.commit()
+
+        return
+
+    changed = False
+
+    if admin.email != admin_email:
+        admin.email = admin_email
+        changed = True
+
+    # The hash cannot be compared against plaintext, so the
+    # password is re-hashed on every sync. Cost is one bcrypt
+    # hash at startup — negligible.
+    admin.password_hash = get_password_hash(
+        admin_password
+    )
+
+    if not admin.is_active:
+        admin.is_active = True
+        changed = True
+
+    db.commit()
+
+
 def seed_database():
 
     Base.metadata.create_all(bind=engine)
@@ -11,35 +86,7 @@ def seed_database():
     db = SessionLocal()
 
     try:
-        admin_email = os.getenv(
-            "ADMIN_EMAIL",
-            "admin@ankittravels.com",
-        )
-
-        admin_password = os.getenv(
-            "ADMIN_PASSWORD",
-            "Admin@12345",
-        )
-
-        admin = (
-            db.query(User)
-            .filter(User.email == admin_email.lower())
-            .first()
-        )
-
-        if not admin:
-            admin = User(
-                name="Ankit Travels Admin",
-                email=admin_email.lower(),
-                phone=None,
-                password_hash=get_password_hash(admin_password),
-                role="admin",
-                is_verified=True,
-                is_active=True,
-            )
-
-            db.add(admin)
-            db.commit()
+        sync_admin_account(db)
         # # --------------------------------
         # # Admin user (always created)
         # # --------------------------------

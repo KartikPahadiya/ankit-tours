@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 class StayImageResponse(BaseModel):
     id: int
+    room_id: int | None
     image_url: str
     is_primary: bool
     display_order: int

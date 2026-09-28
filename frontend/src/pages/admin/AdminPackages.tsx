@@ -152,10 +152,10 @@ export default function AdminPackages() {
     <div>
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-6 mb-8">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
 
         <div>
-          <h1 className="text-3xl font-bold">
+          <h1 className="text-2xl font-bold sm:text-3xl">
             Tour Packages
           </h1>
 
@@ -171,7 +171,7 @@ export default function AdminPackages() {
             setForm(emptyForm);
             setIncludesText("");
           }}
-          className="shrink-0 bg-slate-900 text-white px-5 py-3 rounded-lg hover:bg-slate-800"
+          className="shrink-0 bg-slate-900 text-white px-5 py-3 rounded-lg hover:bg-slate-800 w-full sm:w-auto"
         >
           + Add Package
         </button>
@@ -330,8 +330,72 @@ export default function AdminPackages() {
         </form>
       )}
 
-      {/* Package list */}
-      <div className="bg-white rounded-xl border overflow-hidden">
+      {/* Mobile: card list */}
+      <div className="space-y-3 md:hidden">
+        {packages.length === 0 ? (
+          <p className="text-gray-500">
+            No packages yet. Add your first safari package.
+          </p>
+        ) : (
+          packages.map((pkg) => (
+            <div
+              key={pkg.id}
+              className="rounded-xl border bg-white px-4 py-3"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium">
+                  {pkg.icon} {pkg.title}
+                </p>
+
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] ${
+                    pkg.is_active
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {pkg.is_active ? "active" : "hidden"}
+                </span>
+              </div>
+
+              <p className="mt-1 text-sm text-gray-600">
+                {pkg.duration}
+                <span className="mx-1.5 text-gray-300">·</span>
+                ₹{Number(pkg.price).toLocaleString("en-IN")}
+                {pkg.price_type === "perPerson" ? " / person" : ""}
+                <span className="mx-1.5 text-gray-300">·</span>
+                {pkg.includes.length} item(s)
+              </p>
+
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => startEdit(pkg)}
+                  className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => toggleActive(pkg)}
+                  className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                >
+                  {pkg.is_active ? "Hide" : "Show"}
+                </button>
+
+                <button
+                  onClick={() => handleDelete(pkg)}
+                  className="flex-1 px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden md:block bg-white rounded-xl border overflow-hidden">
 
         <div className="overflow-x-auto">
 

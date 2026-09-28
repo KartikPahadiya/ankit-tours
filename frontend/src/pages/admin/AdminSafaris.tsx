@@ -136,10 +136,10 @@ export default function AdminSafaris() {
     <div>
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-6 mb-8">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
 
         <div>
-          <h1 className="text-3xl font-bold">
+          <h1 className="text-2xl font-bold sm:text-3xl">
             Safaris
           </h1>
 
@@ -155,7 +155,7 @@ export default function AdminSafaris() {
             setEditingId(null);
             setForm(emptyForm);
           }}
-          className="shrink-0 bg-slate-900 text-white px-5 py-3 rounded-lg hover:bg-slate-800"
+          className="shrink-0 bg-slate-900 text-white px-5 py-3 rounded-lg hover:bg-slate-800 w-full sm:w-auto"
         >
           + Add Safari Option
         </button>
@@ -306,8 +306,83 @@ export default function AdminSafaris() {
         </form>
       )}
 
-      {/* Safari options list */}
-      <div className="bg-white rounded-xl border overflow-hidden">
+      {/* Mobile: card list */}
+      <div className="space-y-3 md:hidden">
+        {safaris.length === 0 ? (
+          <p className="text-gray-500">
+            No safari options yet. Add your first one.
+          </p>
+        ) : (
+          safaris.map((safari) => (
+            <div
+              key={safari.id}
+              className="rounded-xl border bg-white px-4 py-3"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium">
+                  {safari.vehicle_type === "Gypsy" ? "🚙" : "🚌"}{" "}
+                  {safari.vehicle_type} — {safari.shift} Shift
+                </p>
+
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] ${
+                    safari.is_active
+                      ? "bg-green-100 text-green-700"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  {safari.is_active ? "active" : "hidden"}
+                </span>
+              </div>
+
+              {safari.note && (
+                <p className="mt-1 text-xs text-gray-400">
+                  {safari.note}
+                </p>
+              )}
+
+              <p className="mt-1 text-sm text-gray-600">
+                ₹{Number(safari.price_per_person).toLocaleString("en-IN")}{" "}
+                / person
+                <span className="mx-1.5 text-gray-300">·</span>
+                {safari.seats_per_vehicle} seats
+                {safari.timing && (
+                  <>
+                    <span className="mx-1.5 text-gray-300">·</span>
+                    {safari.timing}
+                  </>
+                )}
+              </p>
+
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => startEdit(safari)}
+                  className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => toggleActive(safari)}
+                  className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                >
+                  {safari.is_active ? "Hide" : "Show"}
+                </button>
+
+                <button
+                  onClick={() => handleDelete(safari)}
+                  className="flex-1 px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden md:block bg-white rounded-xl border overflow-hidden">
 
         <div className="overflow-x-auto">
 

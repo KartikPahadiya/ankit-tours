@@ -111,7 +111,6 @@ export async function getAdminUsers(): Promise<AdminUser[]> {
 
 export interface CreateStayRequest {
   name: string;
-  slug: string;
   description?: string;
   property_type: string;
   city: string;
@@ -174,12 +173,6 @@ export async function updateAdminStay(
   return response.data;
 }
 
-export async function deactivateAdminStay(
-  stayId: number
-): Promise<void> {
-  await api.delete(`/api/admin/stays/${stayId}`);
-}
-
 export async function createAdminRoom(
   stayId: number,
   data: CreateRoomRequest
@@ -202,6 +195,12 @@ export async function updateAdminRoom(
   );
 
   return response.data;
+}
+
+export async function deleteAdminRoom(
+  roomId: number
+): Promise<void> {
+  await api.delete(`/api/admin/rooms/${roomId}`);
 }
 
 export interface AdminStayImage {
@@ -241,18 +240,6 @@ export async function uploadAdminStayImage(
         "Content-Type": "multipart/form-data",
       },
     }
-  );
-
-  return response.data;
-}
-
-export async function addAdminStayImageByUrl(
-  stayId: number,
-  url: string
-): Promise<AdminStayImage> {
-  const response = await api.post<AdminStayImage>(
-    `/api/admin/stays/${stayId}/images/url`,
-    { url }
   );
 
   return response.data;

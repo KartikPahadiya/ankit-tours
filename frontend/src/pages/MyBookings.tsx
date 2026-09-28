@@ -4,7 +4,6 @@ import {
   ChevronRight,
   Clock,
   CreditCard,
-  XCircle,
   ArrowLeft,
   Package,
 } from "lucide-react";
@@ -19,6 +18,10 @@ import {
   getMyCustomPlans,
   type CustomPlan,
 } from "../services/customPlanService";
+import {
+  getMyRequests,
+  type BookingRequest,
+} from "../services/requestService";
 
 
 export default function MyBookings() {
@@ -29,6 +32,9 @@ export default function MyBookings() {
 
   const [plans, setPlans] = useState<CustomPlan[]>([]);
 
+  const [requests, setRequests] =
+    useState<BookingRequest[]>([]);
+
   const [loading, setLoading] =
     useState(true);
 
@@ -36,7 +42,20 @@ export default function MyBookings() {
   useEffect(() => {
     loadBookings();
     loadPlans();
+    loadRequests();
   }, []);
+
+
+  const loadRequests = async () => {
+    try {
+      const data = await getMyRequests();
+
+      setRequests(data);
+    } catch (error) {
+      // Requests are optional; ignore failures.
+      console.error(error);
+    }
+  };
 
 
   const loadBookings = async () => {
@@ -95,7 +114,7 @@ export default function MyBookings() {
         </h1>
 
 
-        {bookings.length === 0 && plans.length === 0 ? (
+        {bookings.length === 0 && plans.length === 0 && requests.length === 0 ? (
           <div className="bg-white rounded-2xl p-10 text-center">
 
             <CalendarDays
@@ -124,6 +143,132 @@ export default function MyBookings() {
           </div>
         ) : (
           <div className="space-y-6">
+
+            {/* Booking requests (stays / safaris / packages) */}
+            {requests.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  My requests
+                </h2>
+
+                {requests.map((request) => {
+                  const statusStyles: Record<
+                    string,
+                    string
+                  > = {
+                    requested:
+                      "bg-yellow-100 text-yellow-700",
+                    accepted:
+                      "bg-green-100 text-green-700",
+                    rejected:
+                      "bg-red-100 text-red-700",
+                    expired:
+                      "bg-gray-100 text-gray-600",
+                    paid: "bg-green-100 text-green-700",
+                  };
+
+                  const statusLabels: Record<
+                    string,
+                    string
+                  > = {
+                    requested:
+                      "Waiting for Ankit",
+                    accepted: "Accepted",
+                    rejected: "Not available",
+                    expired:
+                      "Payment window expired",
+                    paid: "Paid",
+                  };
+
+                  return (
+                    <div
+                      key={request.id}
+                      className="bg-white rounded-2xl p-6 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <p className="flex items-center gap-2 font-semibold text-gray-900">
+                            <Package size={18} />
+                            {request.item_name}
+                          </p>
+
+                          <p className="mt-1 text-xs text-gray-400">
+                            {request.request_reference}
+                          </p>
+
+                          <div className="mt-3 grid gap-1 text-sm text-gray-600">
+                            {request.check_in &&
+                              request.check_out && (
+                                <p>
+                                  • {request.check_in} →{" "}
+                                  {request.check_out}
+                                </p>
+                              )}
+
+                            <p>
+                              • {request.rooms} room
+                              {request.rooms !== 1
+                                ? "s"
+                                : ""}
+                            </p>
+
+                            {request.amount !==
+                              null && (
+                              <p>
+                                • ₹
+                                {request.amount.toLocaleString(
+                                  "en-IN",
+                                )}
+                              </p>
+                            )}
+
+                            {request.admin_note && (
+                              <p className="text-xs text-gray-500">
+                                Note:{" "}
+                                {request.admin_note}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs ${
+                            statusStyles[
+                              request.status
+                            ]
+                          }`}
+                        >
+                          {
+                            statusLabels[
+                              request.status
+                            ]
+                          }
+                        </span>
+                      </div>
+
+                      {request.status ===
+                        "accepted" && (
+                        <div className="mt-4 border-t pt-4">
+                          <button
+                            onClick={() =>
+                              navigate(
+                                `/requests/${request.id}/pay`,
+                              )
+                            }
+                            className="inline-flex items-center gap-2 rounded-xl bg-green-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-600"
+                          >
+                            <CreditCard size={16} />
+                            {request.amount !== null
+                              ? `Pay ₹${request.amount.toLocaleString("en-IN")}`
+                              : "Pay Now"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Stay bookings */}
             {bookings.length > 0 && (

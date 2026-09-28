@@ -36,7 +36,7 @@ class AdminRoomResponse(BaseModel):
 
 class CreateStayRequest(BaseModel):
     name: str = Field(min_length=2, max_length=150)
-    slug: str = Field(min_length=2, max_length=180)
+    slug: str | None = Field(default=None, max_length=180)
     description: str | None = None
     property_type: str = "Hotel"
     city: str
@@ -124,5 +124,3 @@ class AdminStayImageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class AddStayImageByUrlRequest(BaseModel):
-    url: str = Field(min_length=8, max_length=2048)

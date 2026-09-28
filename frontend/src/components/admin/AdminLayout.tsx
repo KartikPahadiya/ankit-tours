@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -27,11 +30,6 @@ export default function AdminLayout() {
       icon: "🚙",
     },
     {
-      label: "Custom Plans",
-      path: "/admin/custom-plans",
-      icon: "📝",
-    },
-    {
       label: "Tours",
       path: "/admin/packages",
       icon: "🐅",
@@ -51,25 +49,50 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-gray-100 flex">
 
-      {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col">
+      {/* Mobile overlay backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-        <div className="px-6 py-6 border-b border-slate-700">
-          <h1 className="text-2xl font-bold">
-            Ankit Tours
-          </h1>
+      {/* Sidebar — off-canvas drawer on mobile, fixed on desktop */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col transition-transform duration-200 md:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
 
-          <p className="text-sm text-slate-400 mt-1">
-            Admin Panel
-          </p>
+        <div className="px-6 py-6 border-b border-slate-700 flex items-start justify-between">
+
+          <div>
+            <h1 className="text-2xl font-bold">
+              Ankit Tours
+            </h1>
+
+            <p className="text-sm text-slate-400 mt-1">
+              Admin Panel
+            </p>
+          </div>
+
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-800 md:hidden"
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
+
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-2">
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               end={item.path === "/admin"}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition ${isActive
                   ? "bg-white text-slate-900"
@@ -106,15 +129,24 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main */}
-      <main className="ml-64 flex-1 min-h-screen min-w-0">
+      <main className="flex-1 min-h-screen min-w-0 md:ml-64">
 
-        <header className="bg-white border-b px-8 py-5">
+        <header className="bg-white border-b px-4 sm:px-8 py-5 flex items-center gap-3">
+
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="rounded-lg p-2 hover:bg-gray-100 md:hidden"
+            aria-label="Open menu"
+          >
+            <Menu size={22} />
+          </button>
+
           <h2 className="text-xl font-semibold">
             Admin Panel
           </h2>
         </header>
 
-        <div className="p-8">
+        <div className="p-4 sm:p-8">
           <Outlet />
         </div>
 

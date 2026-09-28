@@ -48,3 +48,47 @@ export async function verifyPayment(
 
   return response.data;
 }
+
+export interface CreateRequestOrderResponse {
+  request_id: number;
+  request_reference: string;
+  razorpay_order_id: string;
+  razorpay_key_id: string;
+  amount: number;
+  currency: string;
+}
+
+/** Create (or reuse) the Razorpay order for an accepted
+ * booking request. */
+export async function createRequestPaymentOrder(
+  requestId: number
+): Promise<CreateRequestOrderResponse> {
+  const response =
+    await api.post<CreateRequestOrderResponse>(
+      "/api/payments/create-order",
+      null,
+      {
+        params: { request_id: requestId },
+      }
+    );
+
+  return response.data;
+}
+
+export interface VerifyRequestPaymentData {
+  request_id: number;
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+export async function verifyRequestPayment(
+  data: VerifyRequestPaymentData
+) {
+  const response = await api.post(
+    "/api/payments/verify",
+    data
+  );
+
+  return response.data;
+}

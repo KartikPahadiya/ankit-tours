@@ -304,6 +304,44 @@ def cancel(
 
     payment = booking.payment
 
+    # Atomically claim the cancellation.
+    #
+    # The conditional UPDATE transitions the booking out of
+    # pending/confirmed only if it is still in one of those states.
+    # Even with two concurrent requests (e.g. a double-click), only
+    # one can win this transition, so a Razorpay refund can never be
+    # issued twice for the same booking. (SQLite has no SELECT FOR
+    # UPDATE, so a conditional UPDATE is the portable way to do
+    # this.)
+    claimed = (
+        db.query(Booking)
+        .filter(
+            Booking.id == booking.id,
+            Booking.status.in_(
+                ["pending", "confirmed"]
+            ),
+        )
+        .update(
+            {
+                "status": "cancelled",
+                "expires_at": None,
+            },
+            synchronize_session="fetch",
+        )
+    )
+
+    if claimed == 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Booking is already cancelled "
+                "or cannot be cancelled."
+            ),
+        )
+
+    db.commit()
+    db.refresh(booking)
+
     refund_id = None
     payment_status = (
         payment.status
@@ -312,19 +350,12 @@ def cancel(
     )
 
     try:
-        # Unpaid booking (pending, no payment captured)
+        # Paid booking with a refundable amount.
         if (
-            payment is None
-            or payment.status != "captured"
+            payment is not None
+            and payment.status == "captured"
+            and refund_info["refund_amount"] > 0
         ):
-            booking.status = "cancelled"
-            booking.expires_at = None
-
-            db.commit()
-            db.refresh(booking)
-
-        # Paid booking with refundable amount
-        elif refund_info["refund_amount"] > 0:
             refund = create_refund(
                 db=db,
                 payment=payment,
@@ -333,27 +364,13 @@ def cancel(
                 ],
             )
 
-            booking.status = "cancelled"
-            booking.expires_at = None
-
             db.commit()
-            db.refresh(booking)
 
             refund_id = (
                 refund["id"]
                 if refund
                 else None
             )
-
-            payment_status = payment.status
-
-        # Paid but non-refundable
-        else:
-            booking.status = "cancelled"
-            booking.expires_at = None
-
-            db.commit()
-            db.refresh(booking)
 
             payment_status = payment.status
 

@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # Booking
     BOOKING_HOLD_MINUTES: int = 10
 
+    # Booking requests (admin-approval flow)
+    REQUEST_PAYMENT_EXPIRE_HOURS: int = 24
+
     # Email
     EMAIL_PROVIDER: str = "smtp"
     SMTP_HOST: str = "smtp.gmail.com"
@@ -31,6 +34,9 @@ class Settings(BaseSettings):
     SMTP_USERNAME: str = ""
     SMTP_PASSWORD: str = ""
     EMAIL_FROM: str = ""
+
+    # Admin alerts (payment received etc.) go here
+    ADMIN_EMAIL: str = ""
 
     # WhatsApp Cloud API
     WHATSAPP_ENABLED: bool = False

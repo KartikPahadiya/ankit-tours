@@ -1,13 +1,13 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AvailabilityRequest(BaseModel):
     room_id: int
     check_in: date
     check_out: date
-    guests: int = 1
+    guests: int = Field(default=1, ge=1, le=30)
 
 
 class AvailabilityResponse(BaseModel):
@@ -26,7 +26,7 @@ class CreateBookingRequest(BaseModel):
     room_id: int
     check_in: date
     check_out: date
-    guests: int = 1
+    guests: int = Field(default=1, ge=1, le=30)
 
 
 class BookingResponse(BaseModel):

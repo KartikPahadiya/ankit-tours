@@ -1,7 +1,12 @@
 import { FC, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
+
+import { useAuth } from "../context/AuthContext";
+import { createRequest } from "../services/requestService";
+import { consumePendingRequest, savePendingRequest } from "../utils/pendingRequest";
 
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -71,6 +76,9 @@ const COLOR_STYLES: Record<
 const FALLBACK_STYLE = COLOR_STYLES.orange;
 
 export const TourPackages: FC = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
   const [packages, setPackages] = useState<TourPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -94,14 +102,50 @@ export const TourPackages: FC = () => {
     loadPackages();
   }, []);
 
+  // Restore a half-filled booking if the user was sent to log in first.
+  useEffect(() => {
+    const pending = consumePendingRequest();
+    if (pending?.type === "package") {
+      setSelectedPackage(pending.packageId);
+      setSelectedDate(pending.date || null);
+      setGuests(pending.guests);
+    }
+  }, []);
+
   const selected = packages.find(
     (pkg) => pkg.id === selectedPackage
   );
 
-  const handleBookPackage = () => {
+  const handleBookPackage = async () => {
     if (!selectedPackage || !selectedDate) {
       setError("Please select a travel date first.");
       return;
+    }
+
+    if (!user) {
+      savePendingRequest({
+        type: "package",
+        packageId: selectedPackage,
+        date: selectedDate,
+        guests,
+      });
+      navigate("/login", { state: { from: "/tour-packages" } });
+      return;
+    }
+
+    // Record the request on the website first so Ankit can
+    // accept it in the admin panel (and the user can pay
+    // online once accepted); then open the WhatsApp chat.
+    try {
+      await createRequest({
+        type: "package",
+        item_id: selectedPackage,
+        check_in: selectedDate,
+        rooms: guests,
+      });
+    } catch {
+      // Even if the request fails to save, the WhatsApp
+      // message still goes through.
     }
 
     const selected = packages.find(

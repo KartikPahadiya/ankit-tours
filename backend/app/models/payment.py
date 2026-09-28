@@ -14,10 +14,17 @@ class Payment(Base):
         index=True,
     )
 
-    booking_id: Mapped[int] = mapped_column(
+    booking_id: Mapped[int | None] = mapped_column(
         ForeignKey("bookings.id", ondelete="CASCADE"),
         unique=True,
-        nullable=False,
+        nullable=True,
+        index=True,
+    )
+
+    request_id: Mapped[int | None] = mapped_column(
+        ForeignKey("booking_requests.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=True,
         index=True,
     )
 
@@ -84,5 +91,10 @@ class Payment(Base):
 
     booking = relationship(
         "Booking",
+        back_populates="payment",
+    )
+
+    request = relationship(
+        "BookingRequest",
         back_populates="payment",
     )

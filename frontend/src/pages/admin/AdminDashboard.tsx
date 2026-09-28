@@ -76,8 +76,8 @@ export default function AdminDashboard() {
   return (
     <div>
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
           Dashboard
         </h1>
 
@@ -87,43 +87,33 @@ export default function AdminDashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3">
 
         {cards.map((card) => (
           <div
             key={card.title}
-            className="bg-white rounded-xl border p-6"
+            className="bg-white rounded-xl border p-4 sm:p-6"
           >
-            <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              {card.icon} {card.title}
+            </p>
 
-              <div>
-                <p className="text-sm text-gray-500">
-                  {card.title}
-                </p>
-
-                <p className="text-3xl font-bold mt-2">
-                  {card.value}
-                </p>
-              </div>
-
-              <div className="text-3xl">
-                {card.icon}
-              </div>
-
-            </div>
+            <p className="text-2xl font-bold mt-1 sm:text-3xl">
+              {card.value}
+            </p>
           </div>
         ))}
 
       </div>
 
       {/* Revenue */}
-      <div className="mt-6 bg-white rounded-xl border p-6">
+      <div className="mt-4 sm:mt-6 bg-white rounded-xl border p-4 sm:p-6">
 
         <p className="text-sm text-gray-500">
           Confirmed Booking Revenue
         </p>
 
-        <p className="text-4xl font-bold mt-2">
+        <p className="text-2xl font-bold mt-1 sm:text-4xl">
           ₹{data.total_revenue.toLocaleString("en-IN")}
         </p>
 

@@ -101,15 +101,23 @@ export default function Checkout() {
         );
       }
 
-      const paymentOrder =
-        await createPaymentOrder({
-          room_id: roomId,
-          check_in: checkIn!,
-          check_out: checkOut!,
-          guests,
-        });
+      // Reuse the order created on the first click. Without this,
+      // a double-click or retry after a network error would create
+      // a brand-new booking (and a second inventory hold) every
+      // time the button is pressed.
+      let paymentOrder = order;
 
-      setOrder(paymentOrder);
+      if (!paymentOrder) {
+        paymentOrder =
+          await createPaymentOrder({
+            room_id: roomId,
+            check_in: checkIn!,
+            check_out: checkOut!,
+            guests,
+          });
+
+        setOrder(paymentOrder);
+      }
 
       const options = {
         key: paymentOrder.razorpay_key_id,

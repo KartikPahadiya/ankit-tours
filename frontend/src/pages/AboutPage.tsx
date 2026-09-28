@@ -26,7 +26,7 @@ const WHY_TRAVEL = [
   },
 ];
 
-function AboutPage(): JSX.Element {
+function AboutPage() {
   return (
     <div className="min-h-screen bg-white">
       <Navbar />

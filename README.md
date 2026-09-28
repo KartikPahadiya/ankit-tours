@@ -81,10 +81,14 @@ After seeding, an admin account is created:
 
 | | |
 |---|---|
-| Email | `admin@travelnest.com` |
+| Email | `admin@ankittravels.com` |
 | Password | `Admin@12345` |
 
-> Change these credentials before deploying.
+> These come from `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `backend/.env`.
+> Change them there before deploying. Note: re-running the seed only
+> creates the account if it doesn't exist — to change an existing
+> admin's password, update it directly in the database (or delete the
+> admin user and re-seed).
 
 ## Admin Panel Guide
 

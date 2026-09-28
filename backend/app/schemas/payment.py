@@ -4,8 +4,11 @@ from pydantic import BaseModel
 
 
 class CreateOrderResponse(BaseModel):
-    booking_id: int
-    booking_reference: str
+    booking_id: int | None = None
+    booking_reference: str | None = None
+
+    request_id: int | None = None
+    request_reference: str | None = None
 
     razorpay_order_id: str
     razorpay_key_id: str
@@ -15,7 +18,8 @@ class CreateOrderResponse(BaseModel):
 
 
 class VerifyPaymentRequest(BaseModel):
-    booking_id: int
+    booking_id: int | None = None
+    request_id: int | None = None
 
     razorpay_order_id: str
     razorpay_payment_id: str

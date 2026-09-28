@@ -107,6 +107,61 @@ def mark_payment_success(
     db.commit()
 
 
+def create_razorpay_order_for_request(
+    db: Session,
+    request,
+) -> Payment:
+    """Create a Razorpay order (and Payment row) for an accepted
+    booking request, using the admin-set amount."""
+
+    amount_in_paise = int(
+        round(float(request.amount) * 100)
+    )
+
+    razorpay_order = razorpay_client.order.create(
+        {
+            "amount": amount_in_paise,
+            "currency": "INR",
+            "receipt": request.request_reference,
+            "notes": {
+                "request_id": str(request.id),
+                "request_reference": (
+                    request.request_reference
+                ),
+            },
+        }
+    )
+
+    payment = Payment(
+        request_id=request.id,
+        razorpay_order_id=razorpay_order["id"],
+        amount=request.amount,
+        currency="INR",
+        status="created",
+    )
+
+    db.add(payment)
+    db.commit()
+    db.refresh(payment)
+
+    return payment
+
+
+def mark_request_payment_success(
+    db: Session,
+    payment: Payment,
+    razorpay_payment_id: str,
+) -> None:
+    payment.razorpay_payment_id = razorpay_payment_id
+    payment.status = "captured"
+    payment.paid_at = datetime.now(timezone.utc)
+
+    payment.request.status = "paid"
+    payment.request.expires_at = None
+
+    db.commit()
+
+
 def create_refund(
     db: Session,
     payment: Payment,

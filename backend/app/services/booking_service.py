@@ -34,6 +34,47 @@ def validate_dates(
         )
 
 
+def validate_guests(guests: int) -> None:
+    if guests < 1:
+        raise ValueError(
+            "At least one guest is required."
+        )
+
+
+def find_reusable_pending_booking(
+    db: Session,
+    user_id: int,
+    room_id: int,
+    check_in: date,
+    check_out: date,
+    guests: int,
+) -> Booking | None:
+    """
+    Return the user's still-live pending booking for the same
+    room and dates, if one exists.
+
+    This lets a retried or double-clicked checkout reuse the
+    existing hold instead of creating duplicate bookings that
+    squat the same inventory.
+    """
+
+    now = datetime.now(timezone.utc)
+
+    return (
+        db.query(Booking)
+        .filter(
+            Booking.user_id == user_id,
+            Booking.room_id == room_id,
+            Booking.check_in == check_in,
+            Booking.check_out == check_out,
+            Booking.guests == guests,
+            Booking.status == "pending",
+            Booking.expires_at > now,
+        )
+        .first()
+    )
+
+
 def get_available_rooms(
     db: Session,
     room: Room,
@@ -82,6 +123,7 @@ def check_availability(
 ):
 
     validate_dates(check_in, check_out)
+    validate_guests(guests)
 
     room = (
         db.query(Room)
@@ -134,6 +176,7 @@ def create_pending_booking(
 ):
 
     validate_dates(check_in, check_out)
+    validate_guests(guests)
 
     # Lock the room row during the inventory check.
     room = (

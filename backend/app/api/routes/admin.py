@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status, File, UploadFile
 from pathlib import Path
 from uuid import uuid4
+import re
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -10,7 +11,6 @@ from app.models.room import Room
 from app.models.stay import Stay, StayImage
 from app.models.user import User
 from app.schemas.admin import (
-    AddStayImageByUrlRequest,
     AdminBookingResponse,
     AdminRoomResponse,
     AdminStayResponse,
@@ -106,30 +106,22 @@ def create_stay(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_admin),
 ):
-    # Sanitize: keep only letters, numbers and hyphens
-    import re
+    requested_slug = data.slug or data.name
+    base_slug = re.sub(
+        r"[^a-z0-9]+",
+        "-",
+        requested_slug.strip().lower(),
+    ).strip("-") or "property"
+    clean_slug = base_slug
+    suffix = 2
 
-    clean_slug = re.sub(
-        r"[^a-z0-9-]",
-        "",
-        data.slug.strip().lower().replace(" ", "-"),
-    )
-
-    existing = (
-        db.query(Stay)
-        .filter(Stay.slug == clean_slug)
-        .first()
-    )
-
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="A stay with this slug already exists",
-        )
+    while db.query(Stay).filter(Stay.slug == clean_slug).first():
+        clean_slug = f"{base_slug}-{suffix}"
+        suffix += 1
 
     stay = Stay(
         name=data.name,
-        slug=clean_slug or f"stay-{data.name.strip().lower().replace(' ', '-')}",
+        slug=clean_slug,
         description=data.description,
         property_type=data.property_type,
         city=data.city,
@@ -319,6 +311,34 @@ def update_room(
     return room
 
 
+@router.delete("/rooms/{room_id}")
+def delete_room(
+    room_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_admin),
+):
+    room = db.query(Room).filter(Room.id == room_id).first()
+
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    images = db.query(StayImage).filter(StayImage.room_id == room_id).all()
+
+    for image in images:
+        if image.public_id and str(image.public_id).startswith("uploads/"):
+            local_path = Path(image.public_id)
+            if local_path.exists():
+                try:
+                    local_path.unlink()
+                except OSError:
+                    pass
+
+    db.delete(room)
+    db.commit()
+
+    return {"message": "Room type deleted successfully"}
+
+
 # -------------------------
 # Bookings
 # -------------------------
@@ -496,51 +516,6 @@ def upload_stay_image(
         stay_id=stay_id,
         image_url=f"{base_url}/uploads/stays/{stay_id}/{filename}",
         public_id=f"uploads/stays/{stay_id}/{filename}",
-        is_primary=existing_count == 0,
-        display_order=existing_count,
-    )
-
-    db.add(image)
-    db.commit()
-    db.refresh(image)
-
-    return image
-
-
-@router.post(
-    "/stays/{stay_id}/images/url",
-    response_model=AdminStayImageResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def add_stay_image_by_url(
-    stay_id: int,
-    data: AddStayImageByUrlRequest,
-    db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
-):
-    """Attach an existing image URL (e.g. an Unsplash link) to a property."""
-    stay = (
-        db.query(Stay)
-        .filter(Stay.id == stay_id)
-        .first()
-    )
-
-    if not stay:
-        raise HTTPException(
-            status_code=404,
-            detail="Stay not found",
-        )
-
-    existing_count = (
-        db.query(StayImage)
-        .filter(StayImage.stay_id == stay_id)
-        .count()
-    )
-
-    image = StayImage(
-        stay_id=stay_id,
-        image_url=data.url.strip(),
-        public_id=None,
         is_primary=existing_count == 0,
         display_order=existing_count,
     )

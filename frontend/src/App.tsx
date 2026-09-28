@@ -13,7 +13,6 @@ import AdminBookings from "./pages/admin/AdminBookings";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminPackages from "./pages/admin/AdminPackages";
 import AdminSafaris from "./pages/admin/AdminSafaris";
-import AdminCustomPlans from "./pages/admin/AdminCustomPlans";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -25,6 +24,7 @@ import ProtectedRoute from "./components/common/ProtectedRoute";
 import Stays from "./pages/Stays";
 import MyBookings from "./pages/MyBookings";
 import Checkout from "./pages/Checkout";
+import PayRequest from "./pages/PayRequest";
 import BookingSuccess from "./pages/BookingSuccess";
 import BookingDetails from "./pages/BookingDetails";
 import FaqPage from "./pages/FaqPage";
@@ -113,11 +113,6 @@ function App() {
           />
 
           <Route
-            path="/admin/custom-plans"
-            element={<AdminCustomPlans />}
-          />
-
-          <Route
             path="/admin/bookings"
             element={<AdminBookings />}
           />
@@ -146,6 +141,11 @@ function App() {
         <Route
           path="/checkout"
           element={<Checkout />}
+        />
+
+        <Route
+          path="/requests/:requestId/pay"
+          element={<PayRequest />}
         />
 
         <Route

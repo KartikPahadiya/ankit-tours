@@ -356,7 +356,7 @@ function Navbar() {
         <img
           src="/whatsapp-color-svgrepo-com.svg"
           alt="Chat with Ankit on WhatsApp"
-          className="h-16 w-16 drop-shadow-lg"
+          className="h-[51px] w-[51px]"
         />
       </a>
     </>

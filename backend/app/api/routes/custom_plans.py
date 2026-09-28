@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_admin, get_current_user
+from app.models.booking_request import BookingRequest
 from app.models.custom_plan import CustomPlan
 from app.models.user import User
 from app.schemas.custom_plan import (
@@ -12,6 +13,7 @@ from app.schemas.custom_plan import (
     CustomPlanResponse,
     UpdateCustomPlanStatusRequest,
 )
+from app.services import request_service
 
 router = APIRouter(tags=["Custom Plans"])
 
@@ -28,8 +30,10 @@ def create_custom_plan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Save a custom package request. It is tracked in the user's
-    My Bookings while the details also go to the admin on WhatsApp."""
+    """Save a custom package request. A matching booking request is
+    created so the admin can accept it and set the price; the user
+    then pays from My Bookings, and the details also go to the admin
+    on WhatsApp."""
     plan = CustomPlan(
         user_id=current_user.id,
         travel_days=data.travel_days,
@@ -47,6 +51,18 @@ def create_custom_plan(
     db.add(plan)
     db.commit()
     db.refresh(plan)
+
+    # Custom packages have no listed price, so this request starts
+    # with amount=None until the admin accepts it with a price.
+    request_service.create_request(
+        db=db,
+        user=current_user,
+        request_type="custom",
+        item_id=plan.id,
+        check_in=None,
+        check_out=None,
+        rooms=1,
+    )
 
     return plan
 
@@ -118,7 +134,7 @@ def update_custom_plan_status(
     plan_id: int,
     data: UpdateCustomPlanStatusRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_admin),
+    admin: User = Depends(get_current_admin),
 ):
     """Admin accepts or rejects a custom plan request. The user sees
     the new status in their My Bookings page."""
@@ -140,7 +156,57 @@ def update_custom_plan_status(
             detail="Status must be requested, accepted or rejected",
         )
 
-    plan.status = data.status
+    if data.status == "requested":
+        # Reset both rows back to pending.
+        plan.status = "requested"
+
+        db.query(BookingRequest).filter(
+            BookingRequest.type == "custom",
+            BookingRequest.item_id == plan.id,
+        ).update(
+            {
+                "status": "requested",
+                "expires_at": None,
+                "decided_by": None,
+                "decided_at": None,
+            }
+        )
+    else:
+        # Route through the booking-request flow so accepting
+        # here behaves exactly like accepting from the Bookings
+        # panel — linked request, customer notification and all.
+        request = (
+            db.query(BookingRequest)
+            .filter(
+                BookingRequest.type == "custom",
+                BookingRequest.item_id == plan.id,
+            )
+            .order_by(desc(BookingRequest.id))
+            .first()
+        )
+
+        if not request:
+            raise HTTPException(
+                status_code=404,
+                detail="No booking request linked to this plan",
+            )
+
+        try:
+            if data.status == "accepted":
+                request_service.accept_request(
+                    db, request, admin, None, None
+                )
+            else:
+                request_service.reject_request(
+                    db, request, admin, None
+                )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail=str(exc),
+            )
+
+        db.refresh(plan)
 
     db.commit()
     db.refresh(plan)

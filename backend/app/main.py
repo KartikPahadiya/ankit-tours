@@ -10,16 +10,20 @@ from app.api.routes.bookings import (
 from app.api.routes.payments import (
     router as payments_router,
 )
-from app.api.routes.travel_plans import router as travel_plans_router
 from app.api.routes.packages import router as packages_router
 from app.api.routes.safaris import router as safaris_router
 from app.api.routes.custom_plans import router as custom_plans_router
+from app.api.routes.requests import router as requests_router
+from app.api.routes.admin_requests import (
+    router as admin_requests_router,
+)
 from app.core.config import settings
 from app.core.database import Base, engine
 
 # Import models so SQLAlchemy registers all tables.
 from app.models import (
     Booking,
+    BookingRequest,
     CustomPlan,
     Payment,
     Review,
@@ -28,7 +32,6 @@ from app.models import (
     SafariConfig,
     Stay,
     StayImage,
-    TravelPlan,
     TourPackage,
     User,
 )
@@ -37,6 +40,25 @@ from app.models import (
 # Temporary development table creation.
 # We will replace this with Alembic migrations.
 Base.metadata.create_all(bind=engine)
+
+
+# Keep the admin account in sync with ADMIN_EMAIL /
+# ADMIN_PASSWORD from .env on every startup: create it if
+# missing, update it if the env values changed. This way a
+# deployment only needs an .env edit + restart to rotate the
+# admin credentials.
+try:
+    from app.core.database import SessionLocal
+    from app.seed import sync_admin_account
+
+    _db = SessionLocal()
+
+    try:
+        sync_admin_account(_db)
+    finally:
+        _db.close()
+except Exception as exc:  # noqa: BLE001
+    print(f"Admin account sync skipped: {exc}")
 
 
 app = FastAPI(
@@ -78,10 +100,11 @@ app.include_router(admin_router)
 app.include_router(stays_router)
 app.include_router(bookings_router)
 app.include_router(payments_router)
-app.include_router(travel_plans_router)
 app.include_router(packages_router)
 app.include_router(safaris_router)
 app.include_router(custom_plans_router)
+app.include_router(requests_router)
+app.include_router(admin_requests_router)
 
 # Serve locally uploaded images (property photos uploaded from the
 # admin panel). No external image service required.

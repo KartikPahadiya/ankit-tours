@@ -75,12 +75,6 @@ class User(Base):
         cascade="all, delete-orphan",
     )
 
-    travel_plans = relationship(
-        "TravelPlan",
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
-
     reviews = relationship(
         "Review",
         back_populates="user",

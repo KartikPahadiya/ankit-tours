@@ -1,9 +1,7 @@
 import {
-  Search,
-  SlidersHorizontal,
-  Star,
   MapPin,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
 
 import {
@@ -13,7 +11,7 @@ import {
 
 import {
   Link,
-  useSearchParams,
+  useNavigate,
 } from "react-router-dom";
 
 import Navbar from "../components/layout/Navbar";
@@ -27,11 +25,7 @@ import {
 
 function Stays() {
 
-  const [
-    searchParams,
-    setSearchParams,
-  ] = useSearchParams();
-
+  const navigate = useNavigate();
 
   const [
     stays,
@@ -51,20 +45,6 @@ function Stays() {
   ] = useState("");
 
 
-  const [
-    search,
-    setSearch,
-  ] = useState(
-    searchParams.get("city") || "",
-  );
-
-
-  const [
-    propertyType,
-    setPropertyType,
-  ] = useState("");
-
-
   const fetchStays = async () => {
 
     try {
@@ -72,10 +52,7 @@ function Stays() {
       setLoading(true);
       setError("");
 
-      const data = await getStays(
-        search || undefined,
-        propertyType || undefined,
-      );
+      const data = await getStays();
 
       setStays(data);
 
@@ -97,29 +74,7 @@ function Stays() {
 
     fetchStays();
 
-  }, [propertyType]);
-
-
-  const handleSearch = (
-    event: React.FormEvent,
-  ) => {
-
-    event.preventDefault();
-
-    if (search) {
-
-      setSearchParams({
-        city: search,
-      });
-
-    } else {
-
-      setSearchParams({});
-
-    }
-
-    fetchStays();
-  };
+  }, []);
 
 
   return (
@@ -134,6 +89,14 @@ function Stays() {
 
         <div className="mx-auto max-w-7xl px-5 py-14 lg:px-8">
 
+          <button
+            onClick={() => navigate(-1)}
+            className="mb-6 inline-flex items-center gap-2 text-sm text-neutral-500 transition hover:text-black"
+          >
+            <ArrowLeft size={16} />
+            Go back
+          </button>
+
           <p className="text-sm font-semibold uppercase tracking-widest text-neutral-500">
             Discover
           </p>
@@ -146,75 +109,6 @@ function Stays() {
             Explore handpicked hotels, villas, resorts and
             unique stays across India.
           </p>
-
-
-          {/* Search */}
-
-          <form
-            onSubmit={handleSearch}
-            className="mt-8 flex flex-col gap-3 rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm sm:flex-row"
-          >
-
-            <div className="flex flex-1 items-center gap-3 px-3">
-
-              <Search
-                size={19}
-                className="text-neutral-400"
-              />
-
-              <input
-                value={search}
-                onChange={(event) =>
-                  setSearch(event.target.value)
-                }
-                placeholder="Search destination..."
-                className="w-full bg-transparent py-3 text-sm outline-none"
-              />
-
-            </div>
-
-
-            <select
-              value={propertyType}
-              onChange={(event) =>
-                setPropertyType(
-                  event.target.value,
-                )
-              }
-              className="rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none"
-            >
-
-              <option value="">
-                All property types
-              </option>
-
-              <option value="Villa">
-                Villas
-              </option>
-
-              <option value="Resort">
-                Resorts
-              </option>
-
-              <option value="Hotel">
-                Hotels
-              </option>
-
-              <option value="Homestay">
-                Homestays
-              </option>
-
-            </select>
-
-
-            <button
-              type="submit"
-              className="rounded-xl bg-black px-7 py-3 text-sm font-semibold text-white hover:bg-neutral-800"
-            >
-              Search
-            </button>
-
-          </form>
 
         </div>
 
@@ -230,9 +124,7 @@ function Stays() {
           <div>
 
             <h2 className="text-xl font-semibold">
-              {search
-                ? `Stays in ${search}`
-                : "All stays"}
+              All stays
             </h2>
 
             {!loading && (
@@ -246,12 +138,6 @@ function Stays() {
             )}
 
           </div>
-
-
-          <button className="flex items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium hover:bg-neutral-50">
-            <SlidersHorizontal size={16} />
-            Filters
-          </button>
 
         </div>
 
@@ -372,26 +258,10 @@ function Stays() {
                       </div>
 
 
-                      <div className="flex shrink-0 items-center gap-1 text-sm font-medium">
-
-                        <Star
-                          size={15}
-                          className="fill-black"
-                        />
-
-                        {stay.rating}
-
-                      </div>
-
                     </div>
 
 
-                    <div className="mt-5 flex items-center justify-between border-t border-neutral-100 pt-4">
-
-                      <span className="text-xs text-neutral-500">
-                        {stay.review_count} reviews
-                      </span>
-
+                    <div className="mt-5 flex justify-end border-t border-neutral-100 pt-4">
                       <span className="text-sm font-semibold">
                         View stay →
                       </span>

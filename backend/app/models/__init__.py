@@ -2,8 +2,8 @@ from app.models.user import User
 from app.models.stay import Stay, StayImage
 from app.models.room import Room, RoomAvailability
 from app.models.booking import Booking
+from app.models.booking_request import BookingRequest
 from app.models.payment import Payment
-from app.models.travel_plan import TravelPlan
 from app.models.review import Review
 from app.models.notification import Notification
 from app.models.tour_package import TourPackage
@@ -17,8 +17,8 @@ __all__ = [
     "Room",
     "RoomAvailability",
     "Booking",
+    "BookingRequest",
     "Payment",
-    "TravelPlan",
     "Review",
     "Notification",
     "TourPackage",

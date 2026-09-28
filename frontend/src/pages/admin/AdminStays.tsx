@@ -6,22 +6,21 @@ import {
   createAdminStay,
   CreateRoomRequest,
   CreateStayRequest,
-  deactivateAdminStay,
   deleteAdminStayPermanent,
   getAdminRooms,
   getAdminStays,
   updateAdminRoom,
   updateAdminStay,
-  uploadAdminStayImage,
   getAdminStayImages,
   deleteAdminStayImage,
+  deleteAdminRoom,
   uploadRoomImage,
   AdminStayImage,
 } from "../../services/adminService";
+import StayImageManager from "../../components/admin/StayImageManager";
 
 const emptyStayForm: CreateStayRequest = {
   name: "",
-  slug: "",
   description: "",
   property_type: "Hotel",
   city: "",
@@ -126,7 +125,6 @@ export default function AdminStays() {
       setError("");
 
       const updated = await updateAdminStay(editingStay.id, {
-        name: stayForm.name,
         description: stayForm.description,
         property_type: stayForm.property_type,
         city: stayForm.city,
@@ -154,10 +152,10 @@ export default function AdminStays() {
   const startEditStay = (stay: AdminStay) => {
     setEditingStay(stay);
     setShowStayForm(true);
-    setSelectedStay(null);
+    setSelectedStay(stay);
+    void loadRooms(stay.id);
     setStayFormState({
       name: stay.name,
-      slug: stay.slug,
       description: stay.description || "",
       property_type: stay.property_type,
       city: stay.city,
@@ -187,32 +185,30 @@ export default function AdminStays() {
     }
   };
 
-  const handleDeactivate = async (stay: AdminStay) => {
-    const confirmed = window.confirm(
-      `Hide "${stay.name}" from the website?`
-    );
-
-    if (!confirmed) return;
+  const handleStatusToggle = async (stay: AdminStay) => {
+    const nextStatus = stay.status === "active" ? "inactive" : "active";
 
     try {
-      await deactivateAdminStay(stay.id);
+      const updated = await updateAdminStay(stay.id, {
+        status: nextStatus,
+      });
       setStays((current) =>
         current.map((item) =>
-          item.id === stay.id
-            ? { ...item, status: "inactive" }
-            : item
+          item.id === updated.id ? updated : item
         )
       );
     } catch {
-      setError("Failed to hide property.");
+      setError("Failed to update property status.");
     }
   };
 
-  const openRooms = async (stay: AdminStay) => {
-    setSelectedStay(stay);
+  const closeStayEditor = () => {
+    setShowStayForm(false);
+    setEditingStay(null);
+    setSelectedStay(null);
     setShowRoomForm(false);
     setEditingRoom(null);
-    await loadRooms(stay.id);
+    setStayFormState(emptyStayForm);
   };
 
   const handleCreateRoom = async (
@@ -308,6 +304,24 @@ export default function AdminStays() {
     }
   };
 
+  const handleDeleteRoom = async (room: AdminRoom) => {
+    const confirmed = window.confirm(
+      `Delete the ${room.name} room type and its photos? Existing bookings for it will also be removed.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteAdminRoom(room.id);
+      setRooms((current) => current.filter((item) => item.id !== room.id));
+      setRoomImages((current) =>
+        current.filter((image) => image.room_id !== room.id)
+      );
+    } catch {
+      setError("Failed to delete room type.");
+    }
+  };
+
   if (loading) {
     return <p>Loading properties...</p>;
   }
@@ -316,10 +330,10 @@ export default function AdminStays() {
     <div>
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-6 mb-8">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
 
         <div>
-          <h1 className="text-3xl font-bold">
+          <h1 className="text-2xl font-bold sm:text-3xl">
             Properties
           </h1>
 
@@ -332,9 +346,10 @@ export default function AdminStays() {
           onClick={() => {
             setShowStayForm(true);
             setEditingStay(null);
+            setSelectedStay(null);
             setStayFormState(emptyStayForm);
           }}
-          className="shrink-0 bg-slate-900 text-white px-5 py-3 rounded-lg hover:bg-slate-800"
+          className="shrink-0 bg-slate-900 text-white px-5 py-3 rounded-lg hover:bg-slate-800 w-full sm:w-auto"
         >
           + Add Property
         </button>
@@ -349,10 +364,11 @@ export default function AdminStays() {
 
       {/* Create / edit property form */}
       {showStayForm && (
-        <form
-          onSubmit={editingStay ? handleEditStay : handleCreateStay}
-          className="bg-white border rounded-xl p-6 mb-8"
-        >
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <form
+            onSubmit={editingStay ? handleEditStay : handleCreateStay}
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+          >
 
           <div className="flex justify-between mb-6">
 
@@ -362,12 +378,9 @@ export default function AdminStays() {
 
             <button
               type="button"
-              onClick={() => {
-                setShowStayForm(false);
-                setEditingStay(null);
-                setStayFormState(emptyStayForm);
-              }}
-              className="text-gray-500"
+              onClick={closeStayEditor}
+              className="text-gray-500 hover:text-gray-900"
+              aria-label="Close property editor"
             >
               ✕
             </button>
@@ -375,7 +388,7 @@ export default function AdminStays() {
           </div>
 
           {!editingStay && (
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid gap-4">
               <input
                 required
                 placeholder="Property name"
@@ -384,22 +397,6 @@ export default function AdminStays() {
                   setStayFormState({
                     ...stayForm,
                     name: e.target.value,
-                  })
-                }
-                className="border rounded-lg px-4 py-3"
-              />
-
-              <input
-                required
-                placeholder="URL slug (e.g. my-hotel)"
-                value={stayForm.slug}
-                onChange={(e) =>
-                  setStayFormState({
-                    ...stayForm,
-                    slug: e.target.value
-                      .toLowerCase()
-                      .replace(/\s+/g, "-")
-                      .replace(/[^a-z0-9-]/g, ""),
                   })
                 }
                 className="border rounded-lg px-4 py-3"
@@ -492,11 +489,7 @@ export default function AdminStays() {
 
             <button
               type="button"
-              onClick={() => {
-                setShowStayForm(false);
-                setEditingStay(null);
-                setStayFormState(emptyStayForm);
-              }}
+              onClick={closeStayEditor}
               className="border px-6 py-3 rounded-lg"
             >
               Cancel
@@ -504,11 +497,69 @@ export default function AdminStays() {
 
           </div>
 
-        </form>
+          </form>
+        </div>
       )}
 
-      {/* Property list */}
-      <div className="bg-white rounded-xl border overflow-hidden">
+      {/* Mobile: card list */}
+      <div className="space-y-3 md:hidden">
+        {stays.map((stay) => (
+          <div
+            key={stay.id}
+            className="rounded-xl border bg-white px-4 py-3"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-medium">{stay.name}</p>
+
+              <button
+                onClick={() => handleStatusToggle(stay)}
+                role="switch"
+                aria-checked={stay.status === "active"}
+                className={`inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-medium transition hover:opacity-80 ${
+                  stay.status === "active"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-gray-200 text-gray-600"
+                }`}
+                title={`Set ${stay.name} to ${stay.status === "active" ? "inactive" : "active"}`}
+              >
+                <span className="relative h-4 w-7 rounded-full bg-current/25">
+                  <span
+                    className={`absolute top-0.5 h-3 w-3 rounded-full bg-current transition-transform ${
+                      stay.status === "active" ? "translate-x-3.5" : "translate-x-0.5"
+                    }`}
+                  />
+                </span>
+                {stay.status === "active" ? "On" : "Off"}
+              </button>
+            </div>
+
+            <p className="mt-1 text-sm text-gray-600">
+              {stay.property_type}
+              <span className="mx-1.5 text-gray-300">·</span>
+              {stay.city}, {stay.state}
+            </p>
+
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => startEditStay(stay)}
+                className="flex-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
+              >
+                Edit
+              </button>
+
+              <button
+                onClick={() => handleDeleteStay(stay)}
+                className="flex-1 px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="hidden md:block bg-white rounded-xl border overflow-hidden">
 
         <div className="overflow-x-auto">
 
@@ -554,10 +605,6 @@ export default function AdminStays() {
                     {stay.name}
                   </p>
 
-                  <p className="text-sm text-gray-500">
-                    /{stay.slug}
-                  </p>
-
                 </td>
 
                 <td className="px-6 py-4">
@@ -570,15 +617,26 @@ export default function AdminStays() {
 
                 <td className="px-6 py-4">
 
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs ${
+                  <button
+                    onClick={() => handleStatusToggle(stay)}
+                    role="switch"
+                    aria-checked={stay.status === "active"}
+                    className={`inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-medium transition hover:opacity-80 ${
                       stay.status === "active"
                         ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-600"
+                        : "bg-gray-200 text-gray-600"
                     }`}
+                    title={`Set ${stay.name} to ${stay.status === "active" ? "inactive" : "active"}`}
                   >
-                    {stay.status}
-                  </span>
+                    <span className="relative h-4 w-7 rounded-full bg-current/25">
+                      <span
+                        className={`absolute top-0.5 h-3 w-3 rounded-full bg-current transition-transform ${
+                          stay.status === "active" ? "translate-x-3.5" : "translate-x-0.5"
+                        }`}
+                      />
+                    </span>
+                    {stay.status === "active" ? "On" : "Off"}
+                  </button>
 
                 </td>
 
@@ -592,22 +650,6 @@ export default function AdminStays() {
                     >
                       Edit
                     </button>
-
-                    <button
-                      onClick={() => openRooms(stay)}
-                      className="px-3 py-2 border rounded-lg hover:bg-gray-50"
-                    >
-                      Rooms & Photos
-                    </button>
-
-                    {stay.status === "active" && (
-                      <button
-                        onClick={() => handleDeactivate(stay)}
-                        className="px-3 py-2 border border-yellow-300 text-yellow-700 rounded-lg hover:bg-yellow-50"
-                      >
-                        Hide
-                      </button>
-                    )}
 
                     <button
                       onClick={() => handleDeleteStay(stay)}
@@ -632,10 +674,23 @@ export default function AdminStays() {
       </div>
 
       {/* Room & photo manager for the selected property */}
-      {selectedStay && (
-        <div className="mt-8 rounded-xl bg-white p-6 shadow-sm">
+      {selectedStay && !showStayForm && (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
+          <div className="relative mx-auto my-6 w-full max-w-5xl rounded-lg bg-white p-6 shadow-xl">
 
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <button
+            onClick={() => {
+              setSelectedStay(null);
+              setShowRoomForm(false);
+              setEditingRoom(null);
+            }}
+            className="absolute right-3 top-3 rounded-lg p-1.5 text-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            aria-label="Close rooms and photos"
+          >
+            ✕
+          </button>
+
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4 pr-8">
 
             <div>
               <h2 className="text-xl font-semibold">
@@ -643,22 +698,26 @@ export default function AdminStays() {
               </h2>
 
               <p className="text-gray-500 text-sm">
-                Add room types, set prices, and upload photos.
+                Manage property photos and room types from one place.
               </p>
             </div>
 
-            <button
-              onClick={() => {
-                setShowRoomForm(true);
-                setEditingRoom(null);
-                setRoomFormState(emptyRoomForm);
-              }}
-              className="bg-slate-900 text-white px-4 py-2 rounded-lg"
-            >
-              + Add Room
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setShowRoomForm(true);
+                  setEditingRoom(null);
+                  setRoomFormState(emptyRoomForm);
+                }}
+                className="bg-slate-900 text-white px-4 py-2 rounded-lg"
+              >
+                + Add Room
+              </button>
+            </div>
 
           </div>
+
+          <StayImageManager stayId={selectedStay.id} />
 
           {/* Room form */}
           {(showRoomForm || editingRoom) && (
@@ -690,51 +749,31 @@ export default function AdminStays() {
                   className="border rounded-lg px-4 py-3 bg-white"
                 />
 
-                <input
-                  required
-                  type="number"
-                  min="1"
-                  placeholder="Maximum guests"
-                  value={roomForm.max_guests}
-                  onChange={(e) =>
-                    setRoomFormState({
-                      ...roomForm,
-                      max_guests: Number(e.target.value),
-                    })
-                  }
-                  className="border rounded-lg px-4 py-3 bg-white"
-                />
+                <div className="relative">
+                  <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-gray-500">
+                    ₹
+                  </span>
 
-                <input
-                  required
-                  type="number"
-                  min="1"
-                  step="0.01"
-                  placeholder="Price per night"
-                  value={roomForm.price_per_night}
-                  onChange={(e) =>
-                    setRoomFormState({
-                      ...roomForm,
-                      price_per_night: Number(e.target.value),
-                    })
-                  }
-                  className="border rounded-lg px-4 py-3 bg-white"
-                />
-
-                <input
-                  required
-                  type="number"
-                  min="1"
-                  placeholder="Total rooms"
-                  value={roomForm.total_rooms}
-                  onChange={(e) =>
-                    setRoomFormState({
-                      ...roomForm,
-                      total_rooms: Number(e.target.value),
-                    })
-                  }
-                  className="border rounded-lg px-4 py-3 bg-white"
-                />
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    placeholder="Price per night"
+                    value={
+                      roomForm.price_per_night || ""
+                    }
+                    onChange={(e) =>
+                      setRoomFormState({
+                        ...roomForm,
+                        price_per_night: Number(
+                          e.target.value
+                        ),
+                      })
+                    }
+                    className="w-full border rounded-lg pl-8 pr-4 py-3 bg-white"
+                  />
+                </div>
 
               </div>
 
@@ -749,6 +788,20 @@ export default function AdminStays() {
                 }
                 className="border rounded-lg px-4 py-3 w-full mt-4 bg-white"
               />
+
+              {editingRoom && (
+                <label className="mt-4 inline-flex cursor-pointer rounded-lg border px-4 py-2 text-sm hover:bg-gray-100">
+                  Upload room photos
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(event) =>
+                      handleRoomPhotoUpload(editingRoom.id, event)
+                    }
+                  />
+                </label>
+              )}
 
               <div className="flex gap-3 mt-4">
 
@@ -818,18 +871,13 @@ export default function AdminStays() {
                         Edit
                       </button>
 
-                      <label className="cursor-pointer px-3 py-1.5 border rounded-lg text-sm hover:bg-gray-50">
-                        + Room Photo
+                      <button
+                        onClick={() => handleDeleteRoom(room)}
+                        className="px-3 py-1.5 border border-red-200 rounded-lg text-sm text-red-600 hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
 
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          className="hidden"
-                          onChange={(e) =>
-                            handleRoomPhotoUpload(room.id, e)
-                          }
-                        />
-                      </label>
                     </div>
 
                   </div>
@@ -881,6 +929,7 @@ export default function AdminStays() {
 
           </div>
 
+          </div>
         </div>
       )}
 

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   AdminStayImage,
-  addAdminStayImageByUrl,
   deleteAdminStayImage,
   getAdminStayImages,
   uploadAdminStayImage,
@@ -16,8 +15,6 @@ export default function StayImageManager({
 }: Props) {
   const [images, setImages] = useState<AdminStayImage[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [imageUrl, setImageUrl] = useState("");
-  const [addingUrl, setAddingUrl] = useState(false);
   const [error, setError] = useState("");
 
   async function loadImages() {
@@ -63,35 +60,6 @@ export default function StayImageManager({
       setUploading(false);
 
       event.target.value = "";
-    }
-  };
-
-  const handleAddByUrl = async (
-    event: React.FormEvent
-  ) => {
-    event.preventDefault();
-
-    const url = imageUrl.trim();
-
-    if (!url) {
-      return;
-    }
-
-    try {
-      setAddingUrl(true);
-      setError("");
-
-      const image = await addAdminStayImageByUrl(
-        stayId,
-        url
-      );
-
-      setImages((current) => [...current, image]);
-      setImageUrl("");
-    } catch {
-      setError("Failed to add image URL.");
-    } finally {
-      setAddingUrl(false);
     }
   };
 
@@ -152,30 +120,6 @@ export default function StayImageManager({
           onChange={handleUpload}
         />
       </label>
-
-      {/* Add by URL (optional) */}
-      <form
-        onSubmit={handleAddByUrl}
-        className="mt-3 flex flex-col gap-2 sm:flex-row"
-      >
-
-        <input
-          type="url"
-          placeholder="Or paste an image URL (e.g. an Unsplash link)"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          className="flex-1 border rounded-lg px-4 py-2 text-sm"
-        />
-
-        <button
-          type="submit"
-          disabled={addingUrl || !imageUrl.trim()}
-          className="rounded-lg border px-4 py-2 text-sm disabled:opacity-50 hover:bg-gray-50"
-        >
-          {addingUrl ? "Adding..." : "Add URL"}
-        </button>
-
-      </form>
 
       {error && (
         <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
