@@ -28,7 +28,6 @@ class User(Base):
 
     phone: Mapped[str | None] = mapped_column(
         String(20),
-        unique=True,
         nullable=True,
         index=True,
     )
@@ -36,6 +35,22 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
+    )
+
+    # Password-reset flow (forgot password). Only the SHA-256
+    # hash of the token is stored, never the token itself.
+    password_reset_token_hash: Mapped[str | None] = (
+        mapped_column(
+            String(255),
+            nullable=True,
+        )
+    )
+
+    password_reset_expires_at: Mapped[
+        datetime | None
+    ] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     role: Mapped[str] = mapped_column(

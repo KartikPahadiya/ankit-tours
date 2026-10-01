@@ -73,6 +73,47 @@ const EXPERIENCES = [
     note: "",
     tags: "Photography • Sunrise & Sunset",
   },
+  {
+    
+    image: "/Chambal.jpg",
+    title: "Chambal Gharial Safari",
+    text: "Experience the pristine beauty of the Chambal River and its diverse wildlife in their natural habitat.",
+    note: "",
+    tags: "Photography • Crocodiles • River",
+  },
+  {
+    
+    image: "/SitaMata.jpg",
+    title: "Sita Mata Temple",
+    text: "Visit the sacred Sita Mata Temple and learn about its religious significance and local traditions.",
+    note: "",
+    tags: "Culture • Spirituality • Local Stories",
+  },
+  {
+    
+    image: "/ChautMata.jpg",
+    title: "Chaut Mata Barwada Temple",
+    text: "Visit the sacred Chaut Mata Temple and learn about its religious significance and local traditions.",
+    note: "",
+    tags: "Culture • Spirituality • Goddess",
+  },
+  {
+    
+    image: "/indergarh.jpg",
+    title: "Bijasan Mata Temple (Indergarh)",
+    text: "Visit the sacred Bijasan Mata Temple and learn about its religious significance and local traditions.",
+    note: "",
+    tags: "Culture • Spirituality • Goddess",
+  },
+  {
+    
+    image: "/KhandarFort.jpg",
+    title: "Khandar Fort",
+    text: "Explore the historical Khandar Fort and learn about its architectural significance and local legends.",
+    note: "",
+    tags: "History • Architecture • Photography",
+  },
+  
 ];
 
 interface Experience {
@@ -250,13 +291,29 @@ function Home() {
     "3day" | "5day" | null
   >(null);
 
-  // Mobile experiences carousel: advance one card every 4s,
-  // looping back to the start. Paused while the user touches it.
-  const experienceScrollRef = useRef<HTMLDivElement | null>(null);
+  // Experiences auto-scroll: both the mobile carousel and the
+  // desktop strip share one timer; whichever container is
+  // visible (i.e. actually scrollable) is the one that steps.
+  const experienceScrollRefs = useRef<
+    (HTMLDivElement | null)[]
+  >([]);
   const experienceTimerRef = useRef<number | null>(null);
 
+  const setExperienceRef =
+    (index: number) =>
+    (el: HTMLDivElement | null) => {
+      experienceScrollRefs.current[index] = el;
+    };
+
+  const getExperienceScroller = () =>
+    experienceScrollRefs.current.find(
+      (el) =>
+        el !== null &&
+        el.scrollWidth > el.clientWidth,
+    );
+
   const stepExperienceCarousel = () => {
-    const el = experienceScrollRef.current;
+    const el = getExperienceScroller();
     if (!el) return;
 
     const cardWidth = el.scrollWidth / EXPERIENCES.length;
@@ -1025,17 +1082,33 @@ function Home() {
             wildlife.jpg, fort.jpg, temple.jpg,
             village.jpg, food.jpg, photo.jpg
           */}
-          {/* Desktop: full grid */}
-          <div className="mt-12 hidden gap-6 md:grid md:grid-cols-2 lg:grid-cols-3">
-            {EXPERIENCES.map((exp) => (
-              <ExperienceCard key={exp.title} exp={exp} />
-            ))}
+          {/* Desktop: horizontal auto-scrolling row */}
+          <div className="mt-12 hidden md:block">
+            <div
+              ref={setExperienceRef(0)}
+              onMouseEnter={stopExperienceAutoScroll}
+              onMouseLeave={startExperienceAutoScroll}
+              className="flex gap-6 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {EXPERIENCES.map((exp) => (
+                <div
+                  key={exp.title}
+                  className="w-[340px] shrink-0 lg:w-[400px]"
+                >
+                  <ExperienceCard exp={exp} />
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-4 text-center text-xs text-gray-400">
+              Hover to pause — scrolls automatically
+            </p>
           </div>
 
           {/* Mobile: one card at a time, auto-scrolling horizontally */}
           <div className="mt-8 md:hidden">
             <div
-              ref={experienceScrollRef}
+              ref={setExperienceRef(1)}
               onTouchStart={stopExperienceAutoScroll}
               onTouchEnd={startExperienceAutoScroll}
               className="flex snap-x snap-mandatory gap-4 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

@@ -1,6 +1,12 @@
+import hashlib
+import logging
+import secrets
+from datetime import datetime, timedelta, timezone
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -8,6 +14,11 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import User
+from app.services.email_service import send_email
+
+logger = logging.getLogger(__name__)
+
+RESET_TOKEN_TTL_MINUTES = 30
 
 
 def register_user(
@@ -28,16 +39,9 @@ def register_user(
             detail="An account with this email already exists",
         )
 
-    if phone:
-        existing_phone = db.query(User).filter(
-            User.phone == phone
-        ).first()
-
-        if existing_phone:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="An account with this phone number already exists",
-            )
+    # NOTE: phone numbers are NOT unique — the email is the only
+    # identity. Two users may share a phone (or a password);
+    # they are still different accounts.
 
     user = User(
         name=name.strip(),
