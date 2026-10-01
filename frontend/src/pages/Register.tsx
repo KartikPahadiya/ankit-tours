@@ -18,6 +18,8 @@ function Register() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [alreadyRegistered, setAlreadyRegistered] =
+    useState(false);
 
 
   const handleSubmit = async (
@@ -49,19 +51,28 @@ function Register() {
         password,
       });
 
+      // Credentials are saved — send the user straight to
+      // login, with the email prefilled for them.
       navigate("/login", {
         state: {
           message:
-            "Account created successfully. Please login.",
+            "Account created successfully! Please log in to continue.",
+          email,
         },
       });
 
     } catch (error: any) {
-      const message =
-        error?.response?.data?.detail ||
-        "Unable to create your account.";
-
-      setError(message);
+      if (error?.response?.status === 409) {
+        // Email or phone already registered — point the user
+        // to login instead of a raw error.
+        setAlreadyRegistered(true);
+        setError("");
+      } else {
+        setError(
+          error?.response?.data?.detail ||
+            "Unable to create your account. Please try again.",
+        );
+      }
 
     } finally {
       setLoading(false);
@@ -122,6 +133,19 @@ function Register() {
               </div>
             )}
 
+            {alreadyRegistered && (
+              <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                An account with this email already exists.{" "}
+                <Link
+                  to="/login"
+                  state={{ email }}
+                  className="font-semibold underline hover:text-amber-900"
+                >
+                  Login instead
+                </Link>
+              </div>
+            )}
+
 
             <form
               onSubmit={handleSubmit}
@@ -156,9 +180,10 @@ function Register() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(event) =>
-                    setEmail(event.target.value)
-                  }
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setAlreadyRegistered(false);
+                  }}
                   placeholder="you@example.com"
                   required
                   className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-black focus:ring-1 focus:ring-black"

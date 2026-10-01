@@ -29,7 +29,10 @@ function Login() {
   const { login } = useAuth();
 
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(
+    (location.state as { email?: string } | null)
+      ?.email || "",
+  );
   const [password, setPassword] =
     useState("");
 
